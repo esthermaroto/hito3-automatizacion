@@ -1,0 +1,478 @@
+{
+  "name": "RAG educativo",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "educational_docs",
+          "mode": "list",
+          "cachedResultName": "educational_docs"
+        },
+        "embeddingBatchSize": 100,
+        "options": {}
+      },
+      "id": "c7a80e65-b6d2-4bf9-bb2a-5c98e0090a35",
+      "name": "Store in Qdrant",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        -640,
+        272
+      ],
+      "credentials": {
+        "qdrantApi": {
+          "id": "UvkLFY0X0PmvVPCV",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "source",
+                "value": "={{$json.Documento[0].filename}}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "73e321c3-6570-47bb-8be4-b8450041eeb5",
+      "name": "Load Documents",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        -560,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "chunkSize": 500,
+        "chunkOverlap": 50,
+        "options": {}
+      },
+      "id": "f474231e-2781-47b9-881e-4afd51a612ae",
+      "name": "Chunk Documents",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n \"status\": \"success\",\n \"mensaje\": \"Documento vectorizado correctamente\",\n \"documento\": \"{{$json.nombre}}\",\n \"chunks\": \"{{$json.num_chunks}}\",\n \"vector_store\": \"Qdrant\",\n \"embeddings\": \"Ollama\"\n} ",
+        "options": {}
+      },
+      "id": "18ab5e7a-e009-4bd3-8eac-fc51f11587dc",
+      "name": "Extract Metadata",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -16,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "documentos",
+          "mode": "list",
+          "cachedResultName": "documentos"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "nombre": "={{ $json.nombre }}",
+            "num_chunks": "={{ $json.num_chunks }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "num_chunks",
+              "displayName": "num_chunks",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "524df918-e256-4365-a4bf-0466a96e3c67",
+      "name": "Save to PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -176,
+        272
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "mdRdxdfhhL6ClRyn",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.input || $json.chatInput }}",
+        "options": {
+          "systemMessage": "=Eres un asistente educativo que funciona como un **buscador ciego**.\n\nTu única fuente de información es la herramienta:\n\nQdrant_Vector_Store\n\nNo puedes usar tu conocimiento previo ni información externa.\nREGLA CRÍTICA\n\nAntes de responder cualquier pregunta debes SIEMPRE llamar a la herramienta\nQdrant_Vector_Store.\n\nIncluso si crees conocer la respuesta o si la información aparece en el\nhistorial del chat.\n\nCada pregunta debe tratarse como independiente del resto de la conversación.\nNo utilices respuestas anteriores como fuente de información.\n\nNunca respondas usando solo el historial del chat.\n---\n\n## USO DE LA HERRAMIENTA\n\nAntes de responder a cualquier pregunta debes llamar a la herramienta.\n\nPara obtener información debes usar la herramienta Qdrant_Vector_Store.\n\nCuando necesites buscar información, utiliza la herramienta directamente.\n\nNo escribas la llamada como texto.\nEl sistema ejecutará la herramienta automáticamente.\n\nDebes usar la herramienta **en todas las preguntas**, incluso si crees conocer la respuesta.\n\n---\n\n## USO DEL CONTEXTO RECUPERADO\n\nDespués de recibir los fragmentos recuperados:\n\n• Responde utilizando únicamente la información contenida en esos fragmentos.\n\n• Puedes copiar frases o parafrasearlas ligeramente.\n\n• Puedes combinar información de varias frases del mismo fragmento.\n\nEstá prohibido:\n\n• usar conocimiento previo\n• inventar información\n• completar información faltante\n• añadir ejemplos o explicaciones externas\n\n---\n\n## VERIFICACIÓN\n\nAntes de responder debes comprobar:\n\n¿La información aparece en el texto recuperado?\n\nSi la respuesta **no aparece en el contexto**, responde exactamente:\n\nNo lo sé basándome en la información disponible.\n\nNo añadas ninguna explicación adicional.\n\n---\n\n## LISTAS\n\nSi el texto recuperado contiene una lista de elementos,\ndebes incluir **todos los elementos mencionados** en el documento.\n\n---\n\n## ESTILO\n\nLa respuesta debe ser:\n\n• breve\n• clara\n• basada únicamente en el texto recuperado\n\nNo muestres razonamiento interno ni etiquetas como:\n\n<think>\nchain-of-thought\n\nSi no has llamado a Qdrant_Vector_Store en esta pregunta,\nno puedes generar una respuesta.\n"
+        }
+      },
+      "id": "86c50a4c-fc43-4016-9ff7-7d29b67cc921",
+      "name": "RAG Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1056,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "model": "qwen2.5:7b-instruct",
+        "options": {
+          "temperature": 0.2,
+          "numCtx": 4096
+        }
+      },
+      "id": "e113ed32-dae2-4cc2-a5e7-47feb9689a20",
+      "name": "Ollama LLM",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        496
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "yaSRD3XxRRggHV6o",
+          "name": "Ollama account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 📥 INGESTA DE DOCUMENTOS\n\n1.  Se suben los archivos PDF/TXT/DOC/DOCX en la ruta especificada\n2. Ejecuta este flujo manualmente\n3. Los documentos se dividen en chunks\n4. Se generan embeddings con Ollama\n5. Se almacenan en Qdrant\n6. Metadata se guarda en PostgreSQL\n7. El útimo nodo muestra un mensaje de éxito con información de como se han guardado los documentos",
+        "height": 568,
+        "width": 1400,
+        "color": 2
+      },
+      "id": "22263e4e-2318-4983-80d1-b3e052f9c670",
+      "name": "Sticky Note 2c14d1e7",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1200,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 🔍 CONSULTA RAG\n\n1. Envía un mensaje por el chat de n8n\n2. Se buscan documentos relevantes en Qdrant\n3. El LLM responde basándose SOLO en el contexto\n4. Elimino la memoria del agente para forzar la búsqueda en Qdrant cada vez que se hace una pregunta\n5. Respuesta exclusivamente de lo almacenado en Qdrant\n\n",
+        "height": 488,
+        "width": 1124,
+        "color": 3
+      },
+      "id": "4485bbc3-5c0e-45cb-86d2-eadaf98d75fe",
+      "name": "Sticky Note c922a31e",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        368,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        864,
+        320
+      ],
+      "id": "ba46d61f-1ae3-4e02-af39-ed2353d632f9",
+      "name": "When chat message received",
+      "webhookId": "cee3e721-6c36-4448-bcea-6caac55f9377"
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text:latest"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        -752,
+        480
+      ],
+      "id": "59915c15-1dc9-4307-9fc3-eecf8771f1a0",
+      "name": "Embeddings Ollama",
+      "credentials": {
+        "ollamaApi": {
+          "id": "yaSRD3XxRRggHV6o",
+          "name": "Ollama account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Useful for searching educational documents. Input MUST be a JSON object with a single key \"input\" containing the search string. Example: {\"input\": \"que es la fotosintesis\"}",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "educational_docs",
+          "mode": "list",
+          "cachedResultName": "educational_docs"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        1136,
+        496
+      ],
+      "id": "61990adf-2ce7-4121-9fea-48f15dcbe336",
+      "name": "Qdrant Vector Store",
+      "credentials": {
+        "qdrantApi": {
+          "id": "UvkLFY0X0PmvVPCV",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "upload-document",
+        "formTitle": "Subir documento para el RAG",
+        "formDescription": "Selecciona un archivo PDF, TXT o DOCX",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Documento",
+              "fieldType": "file",
+              "acceptFileTypes": ".pdf,.txt,.doc,.docx",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3377f16a-2ca0-47f8-9c7c-a7e754b2e3ac",
+      "name": "Upload Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 1,
+      "position": [
+        -816,
+        272
+      ],
+      "webhookId": "141980d8-3ab0-475a-ada8-4c3463988b05"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n {\n  json: {\n   nombre: $items()[0].json.metadata.source,\n   num_chunks: $items().length\n  }\n }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        272
+      ],
+      "id": "cc625bfb-8384-4a5a-961d-fca6169d7546",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Store in Qdrant": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Documents": {
+      "ai_document": [
+        [
+          {
+            "node": "Store in Qdrant",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk Documents": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Load Documents",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Metadata": {
+      "main": [
+        []
+      ]
+    },
+    "Ollama LLM": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Store in Qdrant",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Form": {
+      "main": [
+        [
+          {
+            "node": "Store in Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Save to PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "Extract Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "6907311a-458d-4feb-ae03-4bc5d4705289",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a59173206ce05591f41bb11107d3156dd5e39be6075473fc682b6c374c46d5f8"
+  },
+  "id": "rydzJGHuWAz4iQIC",
+  "tags": []
+}
