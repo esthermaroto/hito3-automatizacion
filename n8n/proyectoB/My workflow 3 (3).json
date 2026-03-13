@@ -8,13 +8,13 @@
             {
               "id": "08d7a899-471e-44ad-bd14-d50905b5eefa",
               "name": "pregunta",
-              "value": "Hola! Cómo estás? ",
+              "value": "={{ $json.body.pregunta }}",
               "type": "string"
             },
             {
               "id": "b9bdcc0a-d03e-4b0d-a13c-69b039517042",
               "name": "usuario_id",
-              "value": "u1",
+              "value": "={{ $json.body.usuario_id }}",
               "type": "string"
             }
           ]
@@ -183,7 +183,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"mistral:instruct\",\n  \"stream\": false,\n  \"prompt\": \"Tu única tarea es clasificar la pregunta del usuario en una sola palabra: clima, pais, wikipedia o general. Si preguntan por una capital o datos de un país, responde SOLO: pais. No escribas frases, ni puntos, ni nada más. general para cuando NO coincide con ninguna de las otras. Las palabras de respuesta en minúscula. Pregunta: {{ $json.pregunta }} Respuesta:\"\n}",
+        "jsonBody": "={\n  \"model\": \"mistral:instruct\",\n  \"stream\": false,\n  \"prompt\": \"Eres un clasificador de intenciones experto y estricto. Tu trabajo es analizar la pregunta del usuario y responder ÚNICAMENTE con una de estas cuatro categorías en minúsculas: clima, pais, wikipedia, general.\\n\\nReglas de clasificación:\\n1. clima: Si mencionan temperatura, tiempo atmosférico, lluvia o sol.\\n2. pais: Si preguntan por capitales, banderas, población, moneda o datos específicos de una nación.\\n3. wikipedia: Si piden una definición, historia de algo, o preguntan '¿Qué es...?' o '¿Quién fue...?' sobre temas culturales o científicos.\\n4. general: Saludos, despedidas, agradecimientos o frases que no encajen en las anteriores.\\n\\nEjemplos:\\n- '¿Qué hora es en París?' -> general\\n- '¿Qué tiempo hace en Madrid?' -> clima\\n- '¿Cuál es la capital de Japón?' -> pais\\n- '¿Quién inventó la bombilla?' -> wikipedia\\n- 'Hola, ¿cómo estás?' -> general\\n\\nPregunta del usuario: \\\"{{ $json.pregunta }}\\\"\\n\\nRespuesta (SOLO la palabra):\"\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -235,35 +235,6 @@
       ],
       "id": "5a253bb7-7317-425a-9291-8a2fa3377f49",
       "name": "Generar respuesta"
-    },
-    {
-      "parameters": {
-        "operation": "upsert",
-        "schema": {
-          "__rl": true,
-          "mode": "list",
-          "value": "public"
-        },
-        "table": {
-          "__rl": true,
-          "mode": "list",
-          "value": ""
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1088,
-        -256
-      ],
-      "id": "e7ef8b98-7a13-435f-8313-cd149a51c92f",
-      "name": "Insert or update rows in a table",
-      "credentials": {
-        "postgres": {
-          "id": "kOp7xRQJCzEiSC7a",
-          "name": "Postgres account"
-        }
-      }
     },
     {
       "parameters": {
@@ -399,6 +370,414 @@
       ],
       "id": "2ddc5816-6e74-4477-aa64-b161fdfd0a27",
       "name": "HTTP Request5"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "historial_respuestas",
+          "mode": "list",
+          "cachedResultName": "historial_respuestas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "usuario_id": "={{ $('Edit Fields1').item.json.usuario_id }}",
+            "pregunta": "={{ $('Edit Fields1').item.json.pregunta }}",
+            "intencion": "={{ $('Clasificar intención').item.json.response }}",
+            "respuesta_final": "={{ $json.response }}",
+            "fecha": "={{ $json.created_at }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "usuario_id",
+              "displayName": "usuario_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pregunta",
+              "displayName": "pregunta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intencion",
+              "displayName": "intencion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "respuesta_final",
+              "displayName": "respuesta_final",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1152,
+        -256
+      ],
+      "id": "e8c48a19-f7f6-4da3-8a18-4d07bfe55d77",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "yfDFVvYtbQr4KRrW",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "historial_respuestas",
+          "mode": "list",
+          "cachedResultName": "historial_respuestas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "usuario_id": "={{ $('Edit Fields1').item.json.usuario_id }}",
+            "pregunta": "={{ $('Edit Fields1').item.json.pregunta }}",
+            "intencion": "={{ $('Clasificar intención').item.json.response }}",
+            "respuesta_final": "={{ $json.response }}",
+            "fecha": "={{ $json.created_at }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "usuario_id",
+              "displayName": "usuario_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pregunta",
+              "displayName": "pregunta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intencion",
+              "displayName": "intencion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "respuesta_final",
+              "displayName": "respuesta_final",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1120,
+        -80
+      ],
+      "id": "2240850c-8f4c-423d-9878-123487e12858",
+      "name": "Insert rows in a table1",
+      "credentials": {
+        "postgres": {
+          "id": "yfDFVvYtbQr4KRrW",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "historial_respuestas",
+          "mode": "list",
+          "cachedResultName": "historial_respuestas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "usuario_id": "={{ $('Edit Fields1').item.json.usuario_id }}",
+            "pregunta": "={{ $('Edit Fields1').item.json.pregunta }}",
+            "intencion": "={{ $('Clasificar intención').item.json.response }}",
+            "respuesta_final": "={{ $json.response }}",
+            "fecha": "={{ $json.created_at }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "usuario_id",
+              "displayName": "usuario_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pregunta",
+              "displayName": "pregunta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intencion",
+              "displayName": "intencion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "respuesta_final",
+              "displayName": "respuesta_final",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        112
+      ],
+      "id": "26ff9e62-895d-4ad8-a8ef-c57975082d99",
+      "name": "Insert rows in a table2",
+      "credentials": {
+        "postgres": {
+          "id": "yfDFVvYtbQr4KRrW",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "historial_respuestas",
+          "mode": "list",
+          "cachedResultName": "historial_respuestas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "usuario_id": "={{ $('Edit Fields1').item.json.usuario_id }}",
+            "pregunta": "={{ $('Edit Fields1').item.json.pregunta }}",
+            "intencion": "={{ $('Clasificar intención').item.json.response }}",
+            "respuesta_final": "={{ $json.response }}",
+            "fecha": "={{ $json.created_at }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "usuario_id",
+              "displayName": "usuario_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pregunta",
+              "displayName": "pregunta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intencion",
+              "displayName": "intencion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "respuesta_final",
+              "displayName": "respuesta_final",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1168,
+        -384
+      ],
+      "id": "f3b94c07-395e-4ed3-89bb-1afcabb116e1",
+      "name": "Insert rows in a table3",
+      "credentials": {
+        "postgres": {
+          "id": "yfDFVvYtbQr4KRrW",
+          "name": "Postgres account 2"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -494,7 +873,7 @@
       "main": [
         [
           {
-            "node": "Insert or update rows in a table",
+            "node": "Insert rows in a table",
             "type": "main",
             "index": 0
           }
@@ -533,6 +912,39 @@
           }
         ]
       ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request4": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request5": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
@@ -540,7 +952,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "b64ffd90-f9df-406e-a452-02e918616589",
+  "versionId": "4d7dc1c0-8309-4f17-9ba9-953c96a470fd",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "9522989491aa6560202d674071d3e79eafe1a12d3b62752a0ed7fc473d469ece"
